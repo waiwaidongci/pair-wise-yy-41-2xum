@@ -6,12 +6,15 @@ from pathlib import Path
 from typing import Any, Dict, Optional, Tuple
 from urllib.parse import parse_qs, urlparse
 
+from . import nav_http
 from .domain import (ConflictError, DomainError, NotFoundError, PermissionDenied,
                      ValidationError)
+from .nav_service import NavService
 from .service import Service
 
 
-def make_handler(service: Service, static_dir: str):
+def make_handler(service: Service, static_dir: str,
+                 nav_service: NavService = None):
     root = Path(static_dir)
 
     class Handler(BaseHTTPRequestHandler):
@@ -80,6 +83,14 @@ def make_handler(service: Service, static_dir: str):
                     self._json(200, {"status": "ok"})
                 elif path == "/":
                     self._html(root / "index.html")
+                elif path.startswith("/api/nav"):
+                    if nav_service is None:
+                        self._json(404, {"error": "not_found"})
+                    else:
+                        actor, role = self._identity()
+                        status, payload = nav_http.dispatch_get(
+                            nav_service, path, actor, role)
+                        self._json(status, payload)
                 elif path == "/api/items":
                     actor, role = self._identity()
                     del actor
@@ -110,6 +121,13 @@ def make_handler(service: Service, static_dir: str):
                 body = self._body()
                 if path == "/api/items":
                     self._json(201, service.create_item(body, actor, role))
+                elif path.startswith("/api/nav"):
+                    if nav_service is None:
+                        self._json(404, {"error": "not_found"})
+                    else:
+                        status, payload = nav_http.dispatch_post(
+                            nav_service, path, body, actor, role)
+                        self._json(status, payload)
                 elif path.startswith("/api/items/") and path.endswith("/records"):
                     item_id = int(path.split("/")[3])
                     self._json(201, service.add_record(item_id, body, actor, role))
