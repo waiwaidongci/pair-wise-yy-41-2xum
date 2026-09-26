@@ -1,1 +1,17 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>桥梁结构监测与限行决策</title><style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:900px;margin:2rem auto;padding:0 1rem;color:#17212b}pre{background:#f4f7f9;padding:1rem;overflow:auto}button{padding:.55rem 1rem}</style></head><body><h1>桥梁结构监测与限行决策</h1><p>融合传感、巡检、交通荷载和天气数据，生成限载限行或恢复建议</p><p>监测偏差与预警阈值之比和多条异常记录决定告警等级；限行与封闭决策必须绑定交通通告记录。</p><button onclick="loadItems()">刷新列表</button><pre id="out">使用X-Actor和X-Role请求头调用接口。</pre><script>async function loadItems(){const r=await fetch('/api/items',{headers:{'X-Actor':'demo','X-Role':'viewer'}});document.getElementById('out').textContent=JSON.stringify(await r.json(),null,2)}</script></body></html>
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>桥梁监测与汛期通航净空台账</title><style>body{font-family:-apple-system,BlinkMacSystemFont,sans-serif;max-width:960px;margin:2rem auto;padding:0 1rem;color:#17212b}pre{background:#f4f7f9;padding:1rem;overflow:auto}button{padding:.55rem 1rem}h2{margin-top:2rem;border-bottom:1px solid #d8e0e6;padding-bottom:.3rem}.warn{color:#b04a00;font-weight:600}</style></head><body><h1>桥梁结构监测与汛期通航净空台账</h1><p>结构告警看限行建议；桥孔通行以当前净空为准，船队提交吃水和计划时段，净空不足、测点离线或已有未结束通行单时返回409。</p><h2>结构告警</h2><button onclick="loadItems()">刷新告警列表</button><h2>通航净空台账</h2><button onclick="loadSpans()">刷新净空台账</button><div id="summary"></div><pre id="out">使用X-Actor和X-Role请求头调用接口。</pre><script>
+const H={'X-Actor':'demo','X-Role':'viewer'};
+async function loadItems(){const r=await fetch('/api/items',{headers:H});document.getElementById('out').textContent=JSON.stringify(await r.json(),null,2)}
+async function loadSpans(){
+  const r=await fetch('/api/clearance/spans',{headers:H});const d=await r.json();
+  const pending=(d.pending_resurvey||[]);
+  document.getElementById('summary').innerHTML=pending.length
+    ? '<p class="warn">待复测桥孔：'+pending.map(s=>s.span_code+' '+s.name).join('；')+'</p>'
+    : '<p>无待复测桥孔</p>';
+  const rows=(d.spans||[]).map(s=>({
+    桥孔:s.span_code+' '+s.name, 水位基准:s.datum_elevation, 梁底标高:s.beam_elevation,
+    测点:s.gauge_status, 最新读数:s.gauge_reading,
+    当前净空:s.current_clearance, 剩余净空:s.remaining_clearance,
+    未结束通行单:s.active_order_id, 待复测:s.needs_resurvey}));
+  document.getElementById('out').textContent=JSON.stringify(rows,null,2)
+}
+</script></body></html>
